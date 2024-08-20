@@ -1,3 +1,5 @@
+/* == INCLUDES == */
+
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,15 +7,17 @@
 #include <unistd.h>
 #include <errno.h>
 
+/* == DATA == */
+
 struct termios orig_termios;
+
+/* == TERMINAL == */
 
 void die(const char *s)
 {
 	perror(s);
 	exit(1);
-
 }
-
 
 void DISABLE_RAW_MODE() 
 {
@@ -36,6 +40,8 @@ void ENABLE_RAW_MODE()
 
 	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("Error at tcsetattr in enable raw mode.");
 }
+
+/* == INIT == */
 
 int main() 
 {
