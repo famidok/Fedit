@@ -3,17 +3,27 @@
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
+#include <errno.h>
 
 struct termios orig_termios;
 
+void die(const char *s)
+{
+	perror(s);
+	exit(1);
+
+}
+
+
 void DISABLE_RAW_MODE() 
 {
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+		die("Error at tcsetattr in disable raw mode.");
 }
 
 void ENABLE_RAW_MODE() 
 {
-	tcgetattr(STDIN_FILENO, &orig_termios);
+	if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("Error at tcgetattr in enable raw mode.");
 	atexit(DISABLE_RAW_MODE);
 
 	struct termios raw = orig_termios;	
@@ -21,24 +31,29 @@ void ENABLE_RAW_MODE()
 	raw.c_oflag &= ~(OPOST);
 	raw.c_cflag |= (CS8);
 	raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
+	raw.c_cc[VMIN] = 0;
+	raw.c_cc[VTIME] = 1;
 
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("Error at tcsetattr in enable raw mode.");
 }
 
 int main() 
 {
 	ENABLE_RAW_MODE();
 
-	char c;
-	while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q')
+	while(1)
 	{
-		if (iscntrl(c)) {
+		char c = '\0';
+		if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("Error at main read function.");
+		if (iscntrl(c))
+		{
 			printf("%d\r\n", c);
 		}
 		else
 		{
 			printf("%d ('%c')\r\n", c, c);
 		}
+		if (c == 'q') break;
 	}
 	return 0;
 }
