@@ -17,7 +17,7 @@ struct termios orig_termios;
 
 /* == TERMINAL == */
 
-void die(const char *s)
+void DIE(const char *s)
 {
 	perror(s);
 	exit(1);
@@ -26,12 +26,12 @@ void die(const char *s)
 void DISABLE_RAW_MODE() 
 {
 	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
-		die("Error at tcsetattr in disable raw mode.");
+		DIE("Error at tcsetattr in disable raw mode.");
 }
 
 void ENABLE_RAW_MODE() 
 {
-	if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("Error at tcgetattr in enable raw mode.");
+	if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) DIE("Error at tcgetattr in enable raw mode.");
 	atexit(DISABLE_RAW_MODE);
 
 	struct termios raw = orig_termios;	
@@ -42,7 +42,30 @@ void ENABLE_RAW_MODE()
 	raw.c_cc[VMIN] = 0;
 	raw.c_cc[VTIME] = 1;
 
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("Error at tcsetattr in enable raw mode.");
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) DIE("Error at tcsetattr in enable raw mode.");
+}
+
+char EDITOR_READ_KEY() 
+{
+	int nread;
+	char c;
+	while ((nread = read(STDIN_FILENO, &c, 1)) != 1) 
+	{
+		if (nread == -1 && errno != EAGAIN) DIE("Error at read function.");
+	}
+	return c;
+}
+
+void EDITOR_PROCESS_KEYPRESS()
+{
+	char c = EDITOR_READ_KEY();
+
+	switch (c)
+	{
+		case CTRL_KEY('q'):
+			exit(0);
+			break;
+	}
 }
 
 /* == INIT == */
@@ -53,17 +76,7 @@ int main()
 
 	while(1)
 	{
-		char c = '\0';
-		if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("Error at main read function.");
-		if (iscntrl(c))
-		{
-			printf("%d\r\n", c);
-		}
-		else
-		{
-			printf("%d ('%c')\r\n", c, c);
-		}
-		if (c == CTRL_KEY('q')) break;
+		EDITOR_PROCESS_KEYPRESS();
 	}
 	return 0;
 }
